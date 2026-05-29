@@ -130,21 +130,23 @@ class DreamGPT(nn.Module):
     @torch.no_grad()
     def generate_state(self, context: torch.Tensor, tok: Tokenizer,
                        temperature: float = 1.0, sample_slots: tuple[int, ...] = (2,),
-                       legal_masks: list[torch.Tensor] | None = None) -> list[int]:
-        """Generate the next frame's 4 state tokens with per-slot legal masking.
+                       legal_masks: list[torch.Tensor] | None = None,
+                       n_slots: int = STATE_TOKENS_PER_FRAME) -> list[int]:
+        """Generate the next frame's first ``n_slots`` state tokens with per-slot legal masking.
 
         ``context`` is a 1-D LongTensor of token ids on the model's device. ``sample_slots`` are
         the slots to sample (default: slot 2 = gap_y, which is stochastic at pipe spawns); other
-        slots are greedy. Returns a list of 4 token ids. Cacheless (4 forward passes).
+        slots are greedy. ``n_slots`` < 4 stops early (the playable rollout generates only
+        bird_y/pipe_dx/gap_y and derives the status from geometry). Cacheless.
         """
         was_training = self.training
         self.eval()
         if legal_masks is None:
             legal_masks = [torch.from_numpy(tok.legal_mask(s)).to(context.device)
-                           for s in range(STATE_TOKENS_PER_FRAME)]
+                           for s in range(n_slots)]
         ctx = context
         out: list[int] = []
-        for slot in range(STATE_TOKENS_PER_FRAME):
+        for slot in range(n_slots):
             win = ctx[-self.cfg.block_size:].unsqueeze(0)
             logits, _ = self(win)
             logits = logits[0, -1].masked_fill(~legal_masks[slot], float("-inf"))

@@ -128,6 +128,24 @@ class FlappyEngine:
         return False
 
 
+def collides(cfg, bird_y: float, pipe_dx: float, gap_y: float) -> bool:
+    """Collision test from an *observation* (bird_y, distance-to-next-pipe, gap center).
+
+    Same geometry as the engine's internal check, but expressed over what the world model
+    emits — so the playable dream can adjudicate collisions from its own dreamed positions
+    (the model's learned alive/dead flag is unreliable in long free rollouts: it panics the
+    frame after a pipe is passed). The bird overlaps the pipe column only when ``pipe_dx`` is
+    within a bird radius; only then does being outside the gap kill it.
+    """
+    r = cfg.bird_radius
+    if bird_y - r <= 0.0 or bird_y + r >= cfg.height:           # floor / ceiling
+        return True
+    if pipe_dx <= r:                                            # bird is in the pipe's column
+        if bird_y - r < gap_y - cfg.gap_height / 2.0 or bird_y + r > gap_y + cfg.gap_height / 2.0:
+            return True
+    return False
+
+
 def rollout(engine: FlappyEngine, policy: Callable[[Obs], int],
             max_frames: int = 2048) -> tuple[list[Obs], list[int]]:
     """Run an episode until death or ``max_frames``.

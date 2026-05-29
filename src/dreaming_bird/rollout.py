@@ -18,24 +18,63 @@ from .tokenizer import Tokenizer
 
 
 class DreamStepper:
-    """Steps the learned world model one frame at a time, returning decoded observations."""
+    """Steps the learned world model one frame at a time, returning decoded observations.
+
+    The model generates the 3 world tokens (bird_y, pipe_dx, gap_y); the alive/dead flag is
+    derived from those via :func:`engine.collides` rather than the model's own status token,
+    which is unreliable in long free rollouts (it spuriously fires the frame after a pipe is
+    passed). The geometry-correct status token is appended to the context so the rollout stays
+    on-distribution. This also saves one forward pass per frame.
+    """
 
     def __init__(self, model, tok: Tokenizer, device: str = "cuda",
                  sample_slots: tuple[int, ...] = (2,), temperature: float = 1.0,
                  cfg=None, seed: int = 0):
-        from .eval import ModelPredictor
+        import torch
 
+        from .engine import FlappyEngine
+        from .tokenizer import BOS
+
+        self.t = torch
+        self.model = model
         self.tok = tok
-        self._mp = ModelPredictor(model, tok, device=device, sample_slots=sample_slots,
-                                  temperature=temperature, cfg=cfg, seed=seed)
+        self.device = device
+        self.sample_slots = sample_slots
+        self.temperature = temperature
+        self.cfg = cfg or tok.ecfg
+        self._init_engine = FlappyEngine(self.cfg, seed=seed)
+        self._masks = [torch.from_numpy(tok.legal_mask(s)).to(device) for s in range(3)]
+        self._bos = BOS
+
+    def _decode3(self, s):
+        T = self.tok
+        return (T._dequant(s[0] - T.by_off, 0.0, self.cfg.height, T.tcfg.bird_y_bins),
+                T._dequant(s[1] - T.dx_off, 0.0, self.cfg.max_dx, T.tcfg.pipe_dx_bins),
+                T._dequant(s[2] - T.gap_off, 0.0, self.cfg.height, T.tcfg.gap_y_bins))
 
     def reset(self, seed: int = 0, start_y: float | None = None,
               start_vy: float | None = None) -> Obs:
-        toks = self._mp.reset(seed=seed, start_y=start_y, start_vy=start_vy)
-        return self.tok.decode_state_to_obs(toks)
+        o = self._init_engine.reset(seed=seed, start_y=start_y, start_vy=start_vy)
+        self.ctx = self.t.tensor([self._bos] + self.tok.encode_obs(o),
+                                 device=self.device, dtype=self.t.long)
+        return o
 
     def step(self, action: int) -> Obs:
-        return self.tok.decode_state_to_obs(self._mp.step(action))
+        from .engine import collides
+
+        t = self.t
+        self.ctx = t.cat([self.ctx, t.tensor([self.tok.action_token(action)],
+                                             device=self.device, dtype=t.long)])
+        s3 = self.model.generate_state(self.ctx, self.tok, temperature=self.temperature,
+                                       sample_slots=self.sample_slots, legal_masks=self._masks,
+                                       n_slots=3)
+        by, dx, gp = self._decode3(s3)
+        dead = collides(self.cfg, by, dx, gp)
+        status = self.tok.status_token(not dead)
+        self.ctx = t.cat([self.ctx, t.tensor(s3 + [status], device=self.device, dtype=t.long)])
+        if self.ctx.numel() > self.model.cfg.block_size:
+            self.ctx = self.ctx[-self.model.cfg.block_size:]
+        return Obs(bird_y=by, pipe_dx=dx, gap_y=gp, alive=not dead)
 
 
 def benchmark(model, tok: Tokenizer, n_frames: int = 300, device: str = "cuda",
@@ -108,6 +147,59 @@ def free_rollout_drift(model, tok: Tokenizer, cfg=None, seed: int = 0, max_frame
         "mean_bird_y_bin_error": round(float(np.mean(errs)), 3),
         "max_bird_y_bin_error": int(np.max(errs)),
         "died_in_dream": not obs.alive,
+    }
+
+
+def collision_audit(model, tok: Tokenizer, cfg=None, device: str = "cuda",
+                    n: int = 30, max_frames: int = 500) -> dict:
+    """Free-rollout collision calibration — measures BOTH failure modes.
+
+    * Phantom deaths: a competent (gap-tracking) controller plays the dream; any death where
+      the bird is mid-air with no pipe at it (or comfortably inside the gap) is a false positive.
+    * Missed collisions: an anti-gap controller deliberately flies into pipes; in the real engine
+      it dies at ~frame 58, so a long dream survival means the model is *missing* real collisions.
+    A well-calibrated model has a low phantom rate AND anti-gap survival near the engine's ~58.
+    """
+    from .engine import ACTION_FLAP, ACTION_NOFLAP
+
+    cfg = cfg or tok.ecfg
+    r = cfg.bird_radius
+    scripted = lambda o: ACTION_FLAP if o.bird_y > o.gap_y - 8 else ACTION_NOFLAP
+    anti = lambda o: ACTION_FLAP if o.bird_y > (cfg.height - o.gap_y) else ACTION_NOFLAP
+
+    def is_phantom(o):
+        if o.bird_y <= r + 2 or o.bird_y >= cfg.height - r - 2:
+            return False                                   # floor/ceiling: real
+        if o.pipe_dx <= r + 2:
+            return abs(o.bird_y - o.gap_y) <= cfg.gap_height / 2 - r   # inside gap => phantom
+        return True                                        # no pipe near the bird => phantom
+
+    def play(policy, seed):
+        ds = DreamStepper(model, tok, device=device, sample_slots=(2,), cfg=cfg, seed=seed)
+        o = ds.reset(seed=seed)
+        i = 0
+        for i in range(max_frames):
+            o = ds.step(policy(o))
+            if not o.alive:
+                return i + 1, o
+        return max_frames, o
+
+    phantom = legit = capped = 0
+    s_surv = []
+    for s in range(n):
+        f, o = play(scripted, s)
+        s_surv.append(f)
+        if not o.alive:
+            phantom += is_phantom(o); legit += (not is_phantom(o))
+        else:
+            capped += 1
+    a_surv = [play(anti, 1000 + s)[0] for s in range(n)]
+    deaths = phantom + legit
+    return {
+        "scripted_survival_mean": round(float(np.mean(s_surv)), 1),
+        "phantom_deaths": phantom, "real_deaths": legit, "survived_to_cap": capped,
+        "phantom_rate": round(phantom / deaths, 3) if deaths else 0.0,
+        "antigap_survival_mean": round(float(np.mean(a_surv)), 1),   # engine ~58; high => misses
     }
 
 

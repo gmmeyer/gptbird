@@ -63,6 +63,15 @@ explicitly; don't quietly change it.
 - **Stochastic pipe spawn:** a new pipe's `gap_y` is RNG-drawn and unpredictable from context.
   At inference **sample (don't argmax) at gap slots**; in eval, **exclude spawn frames from exact
   one-step accuracy** and score them on validity/distribution instead.
+- **Collision is derived from geometry, NOT the model's status token** (`engine.collides`, mirrored
+  in `web/app.js`). The model's `bird_y`/`pipe_dx`/`gap_y` are accurate, but its alive/dead flag is
+  unreliable in long free rollouts — it phantom-dies the frame after a pipe is passed (a new far
+  gap appears and it reads "bird far from gap" as death even with `dx`≈119). So the playable
+  rollout generates only the 3 world tokens and computes alive/dead from them; the geometry-correct
+  status token is appended to keep the context on-distribution. Audited: phantom-death rate 0.00,
+  anti-gap survival matches the engine (~58). A model-side fix (so the status token itself gates on
+  `dx`) is a scheduled-sampling/training problem, deferred. `rollout.collision_audit` is the
+  regression check.
 - **Drift mitigation is a measured ladder, applied only as Phase-2 drift-horizon evidence
   demands:** quantization → random-reset data → cheap context-noise augmentation (gated, off by
   default) → short unrolls → full scheduled sampling (Phase 5). Don't jump to scheduled sampling
