@@ -83,14 +83,23 @@ mechanism.
   the pipe is close, flooding the "far from gap + far pipe + alive" regime). **Negative result:**
   raw-status phantom rate only moved 1.00 → 0.92 and collision *recall got worse*. Passive
   teacher-forced data doesn't reach the model's own failure distribution.
-- **Attempt 2 — DAgger / scheduled-sampling — WORKED.** A **batched dream rollout** (`dagger.py`)
-  generates the model's *own* visited states and relabels each frame's status with the geometry
-  oracle; we fine-tune on those (`train.py --init-from`). One round (3k episodes, 2k iters) cut the
-  RAW-status phantom rate **1.00 → 0.44** and improved collision recall (anti-gap 72 → 56 ≈ engine),
-  with one-step accuracy intact — the first intervention to actually move it. Iterating rounds
-  should push further. (Key gotcha found the slow way: the batched rollout must run under **bf16
-  autocast** — fp32 at B=256 gets no tensor cores on the 5090 and is ~15× slower; a batch dropped
-  from minutes to ~4 s once fixed.)
+- **Attempt 2 — DAgger / scheduled-sampling — partially worked, then plateaued.** A **batched dream
+  rollout** (`dagger.py`) generates the model's *own* visited states and relabels each frame's
+  status with the geometry oracle; we fine-tune on those (`train.py --init-from`), iterating with
+  `dagger_loop.py`. **Result:** RAW-status phantom rate **1.00 → ~0.45** (roughly halved) and
+  collision recall fixed (anti-gap 72 → ~58 ≈ engine), one-step accuracy intact. But it **plateaus
+  at ~0.45** — rounds 2–3 didn't compound (0.32 / 0.44 / 0.39, within metric noise; n=100 ≈ 0.46).
+  So the model's native death flag got much better but is **still not solo-reliable** (~45% of its
+  deaths would be phantom without the guard). **Conclusion: the geometry guard stays** (it gives
+  0.00 phantom on any model); the deployed model is unchanged. (Key gotcha found the slow way: the
+  batched rollout must run under **bf16 autocast** — fp32 at B=256 gets no tensor cores on the 5090
+  and is ~15× slower; a batch dropped from minutes to ~4 s once fixed.)
+
+  *Why it plateaus (hypotheses, untested):* fine-tuning each round from the phantom-prone deployed
+  init may re-import the bad prior; and a single status bit predicted from one frame may lack the
+  multi-frame "approach" context to gate cleanly on `dx`. Future angles: fine-tune from the latest
+  model (not deployed) or train from scratch on the aggregate; feed `dx` more directly; or just
+  keep the guard (it's correct and free).
 
 ## 8. Status & open threads
 
