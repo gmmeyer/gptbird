@@ -10,20 +10,22 @@ runtime. See `README.md` for the pitch and `neural-flappy-bird-world-model.md` f
 
 ## Current status
 
-**Phases 1–2 complete; Phase 3 (pipes + collision) is next.** The authoritative build plan is
-**`IMPLEMENTATION_PLAN.md`**; read it before implementing.
+**Phases 1–3 complete; Phase 4 (free rollout + playable renderer) is next.** The authoritative
+build plan is **`IMPLEMENTATION_PLAN.md`**; read it before implementing.
 
 Phase 1: deterministic engine (`engine.py`), locked token grammar with slot-constrained decoding
-(`tokenizer.py`), blended policies + packed-`uint16` data (`policies.py`, `data.py`), and the
-model-agnostic eval/replay harness (`eval.py`). Phase 2: nanoGPT decoder (`model.py`) + training
-(`train.py`). The ~1.9M-param nano model trained on no-pipes data reaches **96.5% exact / 99.4%
-within-±1** one-step bird_y accuracy; free-rollout drift horizon is long (most 300-frame hovers
-never exceed 3 bins; collision timing within 1 frame). **Gate decision: noise-aug stays OFF**
-(it's a gated fallback; flip on only if a later drift measurement demands it). 19 tests pass;
-toolchain verified (torch 2.11+cu128, RTX 5090/sm_120). Checkpoints in `checkpoints/` (gitignored).
+(`tokenizer.py`), blended policies + packed-`uint16` data (`policies.py`, `data.py`), eval/replay
+harness (`eval.py`). Phase 2: nanoGPT decoder (`model.py`) + training (`train.py`); nano model
+(no pipes) hit 96.5%/99.4% one-step bird_y with a long drift horizon — **noise-aug stays OFF**
+(gated fallback). Phase 3: `small` (~11M, ctx 256 frames) trained on pipes data with the rare
+DEAD status token up-weighted (`--dead-weight 20`) to fix collision recall. Held-out one-step:
+bird_y 98.6% exact / 100% within-±1, pipe_dx 100%, gap_y stable 99.96%, **gap-spawn validity
+100%** (scored on validity not identity, since a new gap is RNG-drawn), collisions 94.9% within
+±1 frame. `evaluate_pipes()` in `eval.py` is the Phase-3 metric. 19 tests pass.
 
-Next: train the `small` tier on full (pipes) data; eval one-step accuracy on deterministic
-transitions, collision-frame delta (±1), and gap-spawn validity.
+Next (Phase 4): `rollout.py` (cacheless `DreamStepper` + fps `benchmark`) and `play.py` (pygame)
+are drafted — benchmark fps, headless-smoke the loop, then it's playable with the spacebar
+(`uv run python -m dreaming_bird.play --shadow`). Add a KV cache only if the fps benchmark needs it.
 
 ## Locked decisions — do NOT re-litigate or silently "fix"
 

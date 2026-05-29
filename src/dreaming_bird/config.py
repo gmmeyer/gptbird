@@ -78,5 +78,5 @@ class ModelConfig:
 
 
 # Convenient named tiers from the plan (params are approximate).
-NANO = ModelConfig(n_layer=4, n_head=4, d_model=192, block_size=640)        # ~0.5-2M
-SMALL = ModelConfig(n_layer=8, n_head=8, d_model=448, block_size=1536)      # ~5-15M
+NANO = ModelConfig(n_layer=4, n_head=4, d_model=192, block_size=640)        # ~1.9M
+SMALL = ModelConfig(n_layer=6, n_head=6, d_model=384, block_size=1280)      # ~11M (ctx 256 frames)
