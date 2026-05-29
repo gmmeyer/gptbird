@@ -28,12 +28,13 @@ uv sync
 uv run python -m dreaming_bird.play --shadow
 ```
 
-**In the browser** (client-side, the model runs in your browser via WebGPU — no server):
-```bash
-uv run --with onnx --with onnxruntime python -m dreaming_bird.export_onnx   # -> web/model.onnx
-python -m http.server 8000 --directory web                                  # -> localhost:8000
-```
-See [`web/README.md`](./web/README.md) for how it works and how to deploy it as a static site.
+**Or just play it in your browser — no install:** **https://gmmeyer.github.io/gpt-bird/**
+The model runs client-side via WebGPU, streamed from [🤗 gmmeyer/gpt-bird](https://huggingface.co/gmmeyer/gpt-bird).
+
+The site lives in its own repo, [gmmeyer/gpt-bird](https://github.com/gmmeyer/gpt-bird), included
+here as a submodule at [`web/`](./web). Run it locally with `python -m http.server 8000 --directory web`
+(the model still streams from HF); re-export the model with
+`uv run --with onnx --with onnxruntime python -m dreaming_bird.export_onnx`.
 
 ### Design & plan
 

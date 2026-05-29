@@ -38,6 +38,12 @@ loop exactly. The model exports with an explicit-RMSNorm + explicit-attention pa
 only WebGPU-supported ops. `web/model.onnx` and `web/config.json` are gitignored build artifacts —
 regenerate with `export_onnx`. Build/deploy notes: `web/README.md`.
 
+**Deployed:** the model is on Hugging Face (`gmmeyer/gpt-bird`) and the site is live at
+https://gmmeyer.github.io/gpt-bird/ . The site is its own repo (`gmmeyer/gpt-bird`), included
+here as a **submodule at `web/`** — edit the site inside `web/`, push that repo, then update the
+submodule pointer here. `app.js` loads the model from the HF `MODEL_BASE` URL; HF serves the
+files with permissive CORS so the Pages origin can fetch them.
+
 ## Locked decisions — do NOT re-litigate or silently "fix"
 
 These came out of a reviewed design + a four-way AI debate. If you think one is wrong, raise it
