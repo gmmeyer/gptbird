@@ -71,7 +71,13 @@ explicitly; don't quietly change it.
   status token is appended to keep the context on-distribution. Audited: phantom-death rate 0.00,
   anti-gap survival matches the engine (~58). A model-side fix (so the status token itself gates on
   `dx`) is a scheduled-sampling/training problem, deferred. `rollout.collision_audit` is the
-  regression check.
+  regression check (`derive_status=False` measures the model's *raw* status; `True` the guard).
+  - **Tried & failed (negative result):** lazy-controller data augmentation
+    (`policies.lazy_center_policy`, `data --p-lazy`) to teach dx-gated death. Raw-status phantom
+    rate only moved 1.00 → 0.92 and anti-gap recall got *worse* (71 → 101). Passive teacher-forced
+    data doesn't fix the exposure bias — the model fails on its *own* rollout distribution. The
+    real fix is DAgger / scheduled-sampling (roll out the model, relabel status with the geometry
+    oracle, fine-tune on those self-generated states), which needs a batched rollout for speed.
 - **Drift mitigation is a measured ladder, applied only as Phase-2 drift-horizon evidence
   demands:** quantization → random-reset data → cheap context-noise augmentation (gated, off by
   default) → short unrolls → full scheduled sampling (Phase 5). Don't jump to scheduled sampling

@@ -18,7 +18,8 @@ import numpy as np
 
 from .config import EngineConfig, TokenizerConfig
 from .engine import FlappyEngine, rollout
-from .policies import noisy_scripted_policy, random_policy, random_start, scripted_policy
+from .policies import (lazy_center_policy, noisy_scripted_policy, random_policy,
+                       random_start, scripted_policy)
 from .tokenizer import Tokenizer
 
 
@@ -30,6 +31,7 @@ def generate(
     max_frames: int = 2048,
     p_clean: float = 0.55,
     p_noisy: float = 0.20,
+    p_lazy: float = 0.0,
     p_random_reset: float = 0.15,
     long_pipes: int = 5,
 ) -> tuple[np.ndarray, dict]:
@@ -69,7 +71,9 @@ def generate(
         r = meta_rng.random()
         if r < p_clean:
             policy = scripted_policy()
-        elif r < p_clean + p_noisy:
+        elif r < p_clean + p_lazy:
+            policy = lazy_center_policy(center=engine_cfg.height / 2)
+        elif r < p_clean + p_lazy + p_noisy:
             policy = noisy_scripted_policy(seed=int(meta_rng.integers(0, 2**31 - 1)))
         else:
             policy = random_policy(p_flap=float(meta_rng.uniform(0.05, 0.25)),
@@ -117,11 +121,17 @@ def _main() -> None:
     ap.add_argument("--max-frames", type=int, default=2048)
     ap.add_argument("--no-pipes", action="store_true",
                     help="Phase 2 mode: bird + gravity + flap only, no pipes.")
+    ap.add_argument("--p-clean", type=float, default=0.55)
+    ap.add_argument("--p-noisy", type=float, default=0.20)
+    ap.add_argument("--p-lazy", type=float, default=0.0,
+                    help="fraction of loiter-at-center episodes (teaches dx-gated death)")
+    ap.add_argument("--p-random-reset", type=float, default=0.15)
     args = ap.parse_args()
 
     engine_cfg = EngineConfig(pipes_enabled=not args.no_pipes)
     tokens, meta = generate(args.episodes, seed=args.seed, max_frames=args.max_frames,
-                            engine_cfg=engine_cfg)
+                            engine_cfg=engine_cfg, p_clean=args.p_clean, p_noisy=args.p_noisy,
+                            p_lazy=args.p_lazy, p_random_reset=args.p_random_reset)
     write_dataset(tokens, meta, args.out)
     print(json.dumps({k: v for k, v in meta.items() if k != "pipe_dx_bin_hist"}, indent=2))
     print(f"wrote {args.out}.bin ({tokens.size} tokens) and {args.out}.json")

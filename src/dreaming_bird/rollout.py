@@ -29,7 +29,7 @@ class DreamStepper:
 
     def __init__(self, model, tok: Tokenizer, device: str = "cuda",
                  sample_slots: tuple[int, ...] = (2,), temperature: float = 1.0,
-                 cfg=None, seed: int = 0):
+                 cfg=None, seed: int = 0, derive_status: bool = True):
         import torch
 
         from .engine import FlappyEngine
@@ -42,8 +42,9 @@ class DreamStepper:
         self.sample_slots = sample_slots
         self.temperature = temperature
         self.cfg = cfg or tok.ecfg
+        self.derive_status = derive_status     # True: geometry guard; False: use the model's status token
         self._init_engine = FlappyEngine(self.cfg, seed=seed)
-        self._masks = [torch.from_numpy(tok.legal_mask(s)).to(device) for s in range(3)]
+        self._masks = [torch.from_numpy(tok.legal_mask(s)).to(device) for s in range(4)]
         self._bos = BOS
 
     def _decode3(self, s):
@@ -65,13 +66,17 @@ class DreamStepper:
         t = self.t
         self.ctx = t.cat([self.ctx, t.tensor([self.tok.action_token(action)],
                                              device=self.device, dtype=t.long)])
-        s3 = self.model.generate_state(self.ctx, self.tok, temperature=self.temperature,
-                                       sample_slots=self.sample_slots, legal_masks=self._masks,
-                                       n_slots=3)
-        by, dx, gp = self._decode3(s3)
-        dead = collides(self.cfg, by, dx, gp)
-        status = self.tok.status_token(not dead)
-        self.ctx = t.cat([self.ctx, t.tensor(s3 + [status], device=self.device, dtype=t.long)])
+        n = 3 if self.derive_status else 4
+        s = self.model.generate_state(self.ctx, self.tok, temperature=self.temperature,
+                                      sample_slots=self.sample_slots, legal_masks=self._masks,
+                                      n_slots=n)
+        by, dx, gp = self._decode3(s)
+        if self.derive_status:
+            dead = collides(self.cfg, by, dx, gp)          # geometry guard (default)
+            s = s + [self.tok.status_token(not dead)]
+        else:
+            dead = (s[3] != self.tok.status_token(True))   # trust the model's own status token
+        self.ctx = t.cat([self.ctx, t.tensor(s, device=self.device, dtype=t.long)])
         if self.ctx.numel() > self.model.cfg.block_size:
             self.ctx = self.ctx[-self.model.cfg.block_size:]
         return Obs(bird_y=by, pipe_dx=dx, gap_y=gp, alive=not dead)
@@ -151,7 +156,7 @@ def free_rollout_drift(model, tok: Tokenizer, cfg=None, seed: int = 0, max_frame
 
 
 def collision_audit(model, tok: Tokenizer, cfg=None, device: str = "cuda",
-                    n: int = 30, max_frames: int = 500) -> dict:
+                    n: int = 30, max_frames: int = 500, derive_status: bool = True) -> dict:
     """Free-rollout collision calibration — measures BOTH failure modes.
 
     * Phantom deaths: a competent (gap-tracking) controller plays the dream; any death where
@@ -175,7 +180,8 @@ def collision_audit(model, tok: Tokenizer, cfg=None, device: str = "cuda",
         return True                                        # no pipe near the bird => phantom
 
     def play(policy, seed):
-        ds = DreamStepper(model, tok, device=device, sample_slots=(2,), cfg=cfg, seed=seed)
+        ds = DreamStepper(model, tok, device=device, sample_slots=(2,), cfg=cfg, seed=seed,
+                          derive_status=derive_status)
         o = ds.reset(seed=seed)
         i = 0
         for i in range(max_frames):

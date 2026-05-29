@@ -58,6 +58,22 @@ def noisy_scripted_policy(aim_offset: float = 8.0, p_noise: float = 0.02,
     return policy
 
 
+def lazy_center_policy(center: float = 256.0, near_dx: float = 110.0,
+                       aim_offset: float = 8.0) -> Policy:
+    """Loiter near screen center while the pipe is far; only chase the gap once it's close.
+
+    Deliberately generates lots of "bird far from the (off-center) gap while the pipe is still
+    far away, and ALIVE" frames — the regime a snap-to-gap controller skips and the one the model
+    phantom-dies in. Teaches the model to gate death on pipe distance, not just bird-gap distance.
+    """
+
+    def policy(obs: Obs) -> int:
+        target = obs.gap_y if obs.pipe_dx <= near_dx else center
+        return ACTION_FLAP if obs.bird_y > target - aim_offset else ACTION_NOFLAP
+
+    return policy
+
+
 def random_start(cfg, rng: np.random.Generator) -> tuple[float, float]:
     """Sample a random (start_y, start_vy) for off-policy / random-reset coverage."""
     y = float(rng.uniform(cfg.bird_radius + 1, cfg.height - cfg.bird_radius - 1))
