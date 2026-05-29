@@ -57,7 +57,8 @@ class FlappyEngine:
         self.alive = True
         self.frame = 0
         self.pipes: list[list[float]] = []   # each pipe is [left_x, gap_center_y]
-        self._spawn_pipe(left=cfg.width)      # first pipe just off the right edge
+        if cfg.pipes_enabled:
+            self._spawn_pipe(left=cfg.width)  # first pipe just off the right edge
         return self.observe()
 
     def _spawn_pipe(self, left: float) -> None:
@@ -94,15 +95,16 @@ class FlappyEngine:
         # 2. integrate position
         self.bird_y += self.bird_vy
         # 3. scroll pipes left, cull fully-passed ones, spawn ahead to maintain spacing
-        for p in self.pipes:
-            p[0] -= cfg.pipe_speed
-        self.pipes = [p for p in self.pipes if p[0] + cfg.pipe_width >= 0.0]
-        if not self.pipes:
-            self._spawn_pipe(left=cfg.width)
-        else:
-            rightmost = max(p[0] for p in self.pipes)
-            if rightmost <= cfg.width - cfg.pipe_spacing:
-                self._spawn_pipe(left=rightmost + cfg.pipe_spacing)
+        if cfg.pipes_enabled:
+            for p in self.pipes:
+                p[0] -= cfg.pipe_speed
+            self.pipes = [p for p in self.pipes if p[0] + cfg.pipe_width >= 0.0]
+            if not self.pipes:
+                self._spawn_pipe(left=cfg.width)
+            else:
+                rightmost = max(p[0] for p in self.pipes)
+                if rightmost <= cfg.width - cfg.pipe_spacing:
+                    self._spawn_pipe(left=rightmost + cfg.pipe_spacing)
         # 4. collision is checked AFTER the position update
         if self._collided():
             self.alive = False

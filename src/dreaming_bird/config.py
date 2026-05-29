@@ -37,6 +37,8 @@ class EngineConfig:
     start_y: float = 256.0        # default bird start height (screen center)
     start_vy: float = 0.0
 
+    pipes_enabled: bool = True    # False -> Phase 2 "no pipes" mode (pure 1-D kinematics)
+
     @property
     def gap_center_lo(self) -> float:
         return self.spawn_margin + self.gap_height / 2.0

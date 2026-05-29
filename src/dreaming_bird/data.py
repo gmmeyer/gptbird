@@ -115,9 +115,13 @@ def _main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", type=str, default="data/train")
     ap.add_argument("--max-frames", type=int, default=2048)
+    ap.add_argument("--no-pipes", action="store_true",
+                    help="Phase 2 mode: bird + gravity + flap only, no pipes.")
     args = ap.parse_args()
 
-    tokens, meta = generate(args.episodes, seed=args.seed, max_frames=args.max_frames)
+    engine_cfg = EngineConfig(pipes_enabled=not args.no_pipes)
+    tokens, meta = generate(args.episodes, seed=args.seed, max_frames=args.max_frames,
+                            engine_cfg=engine_cfg)
     write_dataset(tokens, meta, args.out)
     print(json.dumps({k: v for k, v in meta.items() if k != "pipe_dx_bin_hist"}, indent=2))
     print(f"wrote {args.out}.bin ({tokens.size} tokens) and {args.out}.json")

@@ -10,15 +10,20 @@ runtime. See `README.md` for the pitch and `neural-flappy-bird-world-model.md` f
 
 ## Current status
 
-**Phase 1 complete (engine + tokenizer + data + eval harness); Phase 2 (nano model) is next.**
-The authoritative build plan is **`IMPLEMENTATION_PLAN.md`**; read it before implementing.
+**Phases 1–2 complete; Phase 3 (pipes + collision) is next.** The authoritative build plan is
+**`IMPLEMENTATION_PLAN.md`**; read it before implementing.
 
-Done so far: deterministic seeded engine (`engine.py`), the locked token grammar with
-slot-constrained decoding (`tokenizer.py`), blended behavior policies + packed-`uint16` data
-generation (`policies.py`, `data.py`), and the model-agnostic eval/replay harness (`eval.py`).
-19 tests pass; the toolchain go/no-go (torch 2.11+cu128, RTX 5090 / sm_120, bf16, autograd) is
-verified. Next: `model.py` (nano GPT decoder) and `train.py`, then the Phase-2 no-pipes
-drift-horizon gate.
+Phase 1: deterministic engine (`engine.py`), locked token grammar with slot-constrained decoding
+(`tokenizer.py`), blended policies + packed-`uint16` data (`policies.py`, `data.py`), and the
+model-agnostic eval/replay harness (`eval.py`). Phase 2: nanoGPT decoder (`model.py`) + training
+(`train.py`). The ~1.9M-param nano model trained on no-pipes data reaches **96.5% exact / 99.4%
+within-±1** one-step bird_y accuracy; free-rollout drift horizon is long (most 300-frame hovers
+never exceed 3 bins; collision timing within 1 frame). **Gate decision: noise-aug stays OFF**
+(it's a gated fallback; flip on only if a later drift measurement demands it). 19 tests pass;
+toolchain verified (torch 2.11+cu128, RTX 5090/sm_120). Checkpoints in `checkpoints/` (gitignored).
+
+Next: train the `small` tier on full (pipes) data; eval one-step accuracy on deterministic
+transitions, collision-frame delta (±1), and gap-spawn validity.
 
 ## Locked decisions — do NOT re-litigate or silently "fix"
 
