@@ -10,10 +10,15 @@ runtime. See `README.md` for the pitch and `neural-flappy-bird-world-model.md` f
 
 ## Current status
 
-**Planning only — there is no code yet.** The authoritative build plan is
-**`IMPLEMENTATION_PLAN.md`**; read it before implementing anything. It targets Phases 1–4
-(engine/data oracle → nano/small transformer → playable rollout). When you start building,
-follow the project structure and phase gates defined there.
+**Phase 1 complete (engine + tokenizer + data + eval harness); Phase 2 (nano model) is next.**
+The authoritative build plan is **`IMPLEMENTATION_PLAN.md`**; read it before implementing.
+
+Done so far: deterministic seeded engine (`engine.py`), the locked token grammar with
+slot-constrained decoding (`tokenizer.py`), blended behavior policies + packed-`uint16` data
+generation (`policies.py`, `data.py`), and the model-agnostic eval/replay harness (`eval.py`).
+19 tests pass; the toolchain go/no-go (torch 2.11+cu128, RTX 5090 / sm_120, bf16, autograd) is
+verified. Next: `model.py` (nano GPT decoder) and `train.py`, then the Phase-2 no-pipes
+drift-horizon gate.
 
 ## Locked decisions — do NOT re-litigate or silently "fix"
 
@@ -53,17 +58,14 @@ explicitly; don't quietly change it.
 
 ## Commands
 
-No build/test commands exist yet. Once the project is scaffolded (per `IMPLEMENTATION_PLAN.md`),
-the intended commands are:
-
 ```powershell
-uv sync                 # install pinned deps
-uv run pytest           # run tests (engine determinism, tokenizer round-trip, alignment)
-uv run python -m dreaming_bird.train --tier nano   # train (planned)
-uv run python -m dreaming_bird.play                 # play the dream (planned, Phase 4)
+uv sync                                              # install pinned deps (cu128 torch)
+uv run pytest -q                                     # 19 tests: determinism, round-trip, alignment
+uv run python -m dreaming_bird.data --episodes 4000 --out data/train   # generate a dataset
+uv run python -m dreaming_bird.eval                  # eval-harness self-test (oracle vs oracle)
+uv run python -m dreaming_bird.train --tier nano     # train (planned, Phase 2)
+uv run python -m dreaming_bird.play                  # play the dream (planned, Phase 4)
 ```
-
-Update this section with the real commands once they exist.
 
 ## Gotchas
 
