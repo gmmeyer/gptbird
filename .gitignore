@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual envs / uv
+.venv/
+venv/
+.python-version
+
+# Caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Project data & model artifacts (never commit generated trajectories or weights)
+data/
+checkpoints/
+runs/
+wandb/
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
