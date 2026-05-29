@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Dreaming Bird — a neural Flappy Bird</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; background: #0d1017; color: #d7dbe6;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    min-height: 100vh; justify-content: center; padding: 16px; box-sizing: border-box;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: .02em; }
+  h1 span { color: #f0d24a; }
+  #wrap { position: relative; }
+  canvas { background: #11151e; border-radius: 10px; box-shadow: 0 8px 30px #0008; display: block; }
+  #status { font-size: 13px; color: #8b93a7; min-height: 18px; text-align: center; }
+  #backend { color: #5fd08a; }
+  .hint { font-size: 12px; color: #6b7286; max-width: 460px; text-align: center; line-height: 1.5; }
+  .hint b { color: #aab2c6; }
+</style>
+</head>
+<body>
+  <h1>The <span>Dreaming</span> Bird</h1>
+  <div id="wrap"><canvas id="game" width="460" height="819"></canvas></div>
+  <div id="status">initializing…</div>
+  <p class="hint">
+    No physics engine is running — a ~11M-parameter transformer is emitting each frame
+    autoregressively, in your browser. <b>Space</b> / <b>tap</b> to flap. The faint ghost is
+    where real physics would put the bird under the same inputs (drift check).
+  </p>
+  <!-- onnxruntime-web (WebGPU build); version-less so the wasm assets match the script -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.webgpu.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

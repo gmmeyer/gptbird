@@ -14,10 +14,32 @@ autoregressive output. **No physics engine at runtime; the model *is* the physic
 
 ## Status
 
-**Design + reviewed implementation plan. No code yet.**
+**Playable.** Phases 1–4 are implemented and committed: a deterministic oracle + data engine, a
+nanoGPT-style decoder, training, and a free autoregressive rollout you can play. A ~11M-param
+model learns the physics (one-step bird_y 98.6% exact / 100% within ±1 bin; collisions within ±1
+frame), and a controller playing *inside the dream* threads 5+ pipes with near-zero drift.
+Cacheless dreaming runs at ~125 fps on an RTX 5090.
+
+### Play it
+
+```bash
+uv sync
+# desktop (pygame): spacebar to flap; the ghost is true physics under the same inputs
+uv run python -m dreaming_bird.play --shadow
+```
+
+**In the browser** (client-side, the model runs in your browser via WebGPU — no server):
+```bash
+uv run --with onnx --with onnxruntime python -m dreaming_bird.export_onnx   # -> web/model.onnx
+python -m http.server 8000 --directory web                                  # -> localhost:8000
+```
+See [`web/README.md`](./web/README.md) for how it works and how to deploy it as a static site.
+
+### Design & plan
 
 - [`neural-flappy-bird-world-model.md`](./neural-flappy-bird-world-model.md) — the original design / idea document.
-- [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) — the concrete Phase 1–4 build plan, reviewed and revised via a four-way AI debate (Gemini / Codex / Sonnet / Opus).
+- [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) — the Phase 1–4 build plan, reviewed and revised via a four-way AI debate (Gemini / Codex / Sonnet / Opus).
+- [`CLAUDE.md`](./CLAUDE.md) — locked design decisions and current status.
 
 ## The core idea
 

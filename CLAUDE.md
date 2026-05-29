@@ -30,7 +30,13 @@ bins over 16 runs; mean 0.49). Play it: `uv run python -m dreaming_bird.play --s
 (spacebar flaps; the ghost is true physics under the same actions). Collisions fire in-dream
 (real game-over), gaps are sampled (slot 2) so the dream invents its own pipes.
 
-In progress: a client-side **web** port (export model to ONNX, run in-browser via WebGPU).
+**Web port (done):** `export_onnx.py` exports the checkpoint to `web/model.onnx` (+ `config.json`)
+— validated against PyTorch (max logit diff 1.3e-5). `web/index.html` + `web/app.js` run the model
+client-side via onnxruntime-web (WebGPU, WASM fallback); `app.js` mirrors `rollout.py`'s decode
+loop exactly. The model exports with an explicit-RMSNorm + explicit-attention path (see
+`is_in_onnx_export()` in `model.py` and `_swap_rmsnorm` in `export_onnx.py`) so the ONNX graph uses
+only WebGPU-supported ops. `web/model.onnx` and `web/config.json` are gitignored build artifacts —
+regenerate with `export_onnx`. Build/deploy notes: `web/README.md`.
 
 ## Locked decisions — do NOT re-litigate or silently "fix"
 

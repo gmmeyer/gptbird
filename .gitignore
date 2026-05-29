@@ -28,6 +28,10 @@ wandb/
 *.ckpt
 *.safetensors
 
+# Web export artifacts (regenerate: python -m dreaming_bird.export_onnx)
+web/model.onnx
+web/config.json
+
 # OS / editor
 .DS_Store
 Thumbs.db
