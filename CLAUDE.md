@@ -78,6 +78,13 @@ explicitly; don't quietly change it.
     data doesn't fix the exposure bias — the model fails on its *own* rollout distribution. The
     real fix is DAgger / scheduled-sampling (roll out the model, relabel status with the geometry
     oracle, fine-tune on those self-generated states), which needs a batched rollout for speed.
+  - **DAgger works (`dagger.py`, batched + bf16 autocast; `train.py --init-from`).** One round
+    (3k self-generated episodes relabeled by the geometry oracle, 2k fine-tune iters) cut the
+    model's RAW-status phantom rate **1.00 → 0.44** and improved collision recall (anti-gap 72 →
+    56 ≈ engine), with one-step accuracy intact. Iterative rounds (generate from the improved
+    model, repeat) should push it lower. The geometry guard stays authoritative in the live game
+    until raw phantom is low enough to drop it. (NB: batched rollout MUST run under bf16 autocast
+    — fp32 at B=256 has no tensor-core path on the 5090 and is ~15x slower.)
 - **Drift mitigation is a measured ladder, applied only as Phase-2 drift-horizon evidence
   demands:** quantization → random-reset data → cheap context-noise augmentation (gated, off by
   default) → short unrolls → full scheduled sampling (Phase 5). Don't jump to scheduled sampling

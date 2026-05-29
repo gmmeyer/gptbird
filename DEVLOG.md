@@ -83,10 +83,14 @@ mechanism.
   the pipe is close, flooding the "far from gap + far pipe + alive" regime). **Negative result:**
   raw-status phantom rate only moved 1.00 → 0.92 and collision *recall got worse*. Passive
   teacher-forced data doesn't reach the model's own failure distribution.
-- **Attempt 2 — DAgger / scheduled-sampling** (in progress at time of writing): a **batched dream
-  rollout** (`dagger.py`) generates the model's *own* visited states and relabels each frame's
-  status with the geometry oracle, then we fine-tune on those (`train.py --init-from`). This targets
-  the exposure bias directly — correct labels exactly where the model fails.
+- **Attempt 2 — DAgger / scheduled-sampling — WORKED.** A **batched dream rollout** (`dagger.py`)
+  generates the model's *own* visited states and relabels each frame's status with the geometry
+  oracle; we fine-tune on those (`train.py --init-from`). One round (3k episodes, 2k iters) cut the
+  RAW-status phantom rate **1.00 → 0.44** and improved collision recall (anti-gap 72 → 56 ≈ engine),
+  with one-step accuracy intact — the first intervention to actually move it. Iterating rounds
+  should push further. (Key gotcha found the slow way: the batched rollout must run under **bf16
+  autocast** — fp32 at B=256 gets no tensor cores on the 5090 and is ~15× slower; a batch dropped
+  from minutes to ~4 s once fixed.)
 
 ## 8. Status & open threads
 

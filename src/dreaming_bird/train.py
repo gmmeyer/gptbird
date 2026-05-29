@@ -114,7 +114,7 @@ def lr_at(it: int, lr: float, warmup: int, total: int, min_ratio: float = 0.1) -
 def train(data_path: str, tier: str = "nano", iters: int = 3000, bs: int = 64,
           lr: float = 3e-3, warmup: int = 100, noise_aug: float = 0.0, dead_weight: float = 1.0,
           out: str = "checkpoints/model.pt", eval_every: int = 250, seed: int = 0,
-          tok_cfg: TokenizerConfig | None = None) -> dict:
+          tok_cfg: TokenizerConfig | None = None, init_from: str | None = None) -> dict:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     torch.manual_seed(seed)
     tok = Tokenizer(tok_cfg=tok_cfg) if tok_cfg else Tokenizer()
@@ -123,6 +123,9 @@ def train(data_path: str, tier: str = "nano", iters: int = 3000, bs: int = 64,
     tokens = np.fromfile(data_path, dtype=np.uint16)
     batcher = Batcher(tokens, cfg.block_size, tok, device, seed=seed, dead_weight=dead_weight)
     model = DreamGPT(cfg, tok.vocab_size).to(device)
+    if init_from:
+        model.load_state_dict(torch.load(init_from, weights_only=False)["model"])
+        print(f"fine-tuning from {init_from}")
     opt = torch.optim.AdamW(model.parameters(), lr=lr, betas=(0.9, 0.95), weight_decay=0.1)
     aug_gen = torch.Generator(device=device).manual_seed(seed + 1)
 
@@ -173,9 +176,11 @@ def _main() -> None:
                     help="loss weight on the rare DEAD status token (collision learning)")
     ap.add_argument("--out", type=str, default="checkpoints/model.pt")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--init-from", type=str, default=None, help="checkpoint to fine-tune from")
     args = ap.parse_args()
     train(args.data, tier=args.tier, iters=args.iters, bs=args.batch_size, lr=args.lr,
-          noise_aug=args.noise_aug, dead_weight=args.dead_weight, out=args.out, seed=args.seed)
+          noise_aug=args.noise_aug, dead_weight=args.dead_weight, out=args.out, seed=args.seed,
+          init_from=args.init_from)
 
 
 if __name__ == "__main__":
