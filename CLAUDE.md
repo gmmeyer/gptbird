@@ -10,8 +10,8 @@ runtime. See `README.md` for the pitch and `neural-flappy-bird-world-model.md` f
 
 ## Current status
 
-**Phases 1–3 complete; Phase 4 (free rollout + playable renderer) is next.** The authoritative
-build plan is **`IMPLEMENTATION_PLAN.md`**; read it before implementing.
+**Phases 1–4 complete (the "through playable rollout" scope). A browser port is in progress.**
+The authoritative build plan is **`IMPLEMENTATION_PLAN.md`**; read it before implementing.
 
 Phase 1: deterministic engine (`engine.py`), locked token grammar with slot-constrained decoding
 (`tokenizer.py`), blended policies + packed-`uint16` data (`policies.py`, `data.py`), eval/replay
@@ -23,9 +23,14 @@ bird_y 98.6% exact / 100% within-±1, pipe_dx 100%, gap_y stable 99.96%, **gap-s
 100%** (scored on validity not identity, since a new gap is RNG-drawn), collisions 94.9% within
 ±1 frame. `evaluate_pipes()` in `eval.py` is the Phase-3 metric. 19 tests pass.
 
-Next (Phase 4): `rollout.py` (cacheless `DreamStepper` + fps `benchmark`) and `play.py` (pygame)
-are drafted — benchmark fps, headless-smoke the loop, then it's playable with the spacebar
-(`uv run python -m dreaming_bird.play --shadow`). Add a KV cache only if the fps benchmark needs it.
+Phase 4: `rollout.py` (cacheless `DreamStepper`, fps `benchmark`, `free_rollout_drift`) and
+`play.py` (pygame). Cacheless dreaming runs at **125 fps** on the 5090 (no KV cache needed).
+Autopilot playing the dream threads **5+ pipes** with **~zero bird_y drift** (never exceeded 3
+bins over 16 runs; mean 0.49). Play it: `uv run python -m dreaming_bird.play --shadow`
+(spacebar flaps; the ghost is true physics under the same actions). Collisions fire in-dream
+(real game-over), gaps are sampled (slot 2) so the dream invents its own pipes.
+
+In progress: a client-side **web** port (export model to ONNX, run in-browser via WebGPU).
 
 ## Locked decisions — do NOT re-litigate or silently "fix"
 
