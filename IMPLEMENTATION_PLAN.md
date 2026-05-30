@@ -10,7 +10,7 @@ autoregressive rollout). Phases 5–7 (scheduled sampling, velocity probe, agent
 are out of scope but the design leaves clean seams for them.
 
 **Status:** reviewed via a 4-way AI debate (Gemini / Codex / Sonnet / Opus, 2 rounds,
-cross-critique). Synthesis at `~/.claude-octopus/debates/local/001-dreaming-bird-plan/`.
+cross-critique).
 
 ---
 

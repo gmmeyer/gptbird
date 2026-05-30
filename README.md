@@ -40,7 +40,7 @@ here as a submodule at [`web/`](./web). Run it locally with `python -m http.serv
 
 - [`neural-flappy-bird-world-model.md`](./neural-flappy-bird-world-model.md) — the original design / idea document.
 - [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) — the Phase 1–4 build plan, reviewed and revised via a four-way AI debate (Gemini / Codex / Sonnet / Opus).
-- [`CLAUDE.md`](./CLAUDE.md) — locked design decisions and current status.
+- [`AGENTS.md`](./AGENTS.md) — locked design decisions and current status for coding agents.
 
 ## The core idea
 
