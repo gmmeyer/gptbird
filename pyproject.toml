@@ -3,7 +3,11 @@ name = "dreaming-bird"
 version = "0.1.0"
 description = "A neural Flappy Bird world model — a transformer trained to be the game's physics."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12,<3.13"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+]
 dependencies = [
     "numpy>=2.0",
     "torch>=2.7",
